@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NaverLogin", "NaverLogin\NaverLogin.csproj", "{E4FD3631-FFC5-4DD6-8C80-5701BFBC08F8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NaverLoginTest", "NaverLoginTest\NaverLoginTest.csproj", "{67612EB9-36B6-4744-BCAA-2DD57DB2EC49}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E4FD3631-FFC5-4DD6-8C80-5701BFBC08F8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E4FD3631-FFC5-4DD6-8C80-5701BFBC08F8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E4FD3631-FFC5-4DD6-8C80-5701BFBC08F8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E4FD3631-FFC5-4DD6-8C80-5701BFBC08F8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{67612EB9-36B6-4744-BCAA-2DD57DB2EC49}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{67612EB9-36B6-4744-BCAA-2DD57DB2EC49}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{67612EB9-36B6-4744-BCAA-2DD57DB2EC49}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{67612EB9-36B6-4744-BCAA-2DD57DB2EC49}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
