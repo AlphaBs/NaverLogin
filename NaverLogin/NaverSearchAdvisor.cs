@@ -1,11 +1,13 @@
-﻿using System.Net.Http;
+﻿using System;
+using System.Net.Http;
+using System.Security.Authentication;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using HttpAction;
 using NaverLogin;
 using Newtonsoft.Json.Linq;
 
-namespace NaverLoginTest
+namespace NaverLogin
 {
     // 네이버 서치어드바이저
     // https://searchadvisor.com
@@ -24,6 +26,8 @@ namespace NaverLoginTest
         {
             this.http = http;
             this.browser = browser;
+
+            if (!browser.IsValid()) throw new ArgumentException(nameof(browser));
         }
 
         private HttpHeaderCollection getHeaders(bool useReferer = true, bool useCsrf = false)
@@ -43,8 +47,8 @@ namespace NaverLoginTest
         }
 
         // GET: login-token
-        private Task<string> getLoginToken(string code, string state)
-            => http.SendActionAsync(new HttpAction<string>
+        private Task<HttpResponseMessage> getLoginToken(string code, string state)
+            => http.SendActionAsync(new HttpAction<HttpResponseMessage>
             {
                 Method = HttpMethod.Post,
                 Host = "https://searchadvisor.naver.com",
@@ -55,11 +59,11 @@ namespace NaverLoginTest
                     code = code,
                     state = state
                 }),
-                ResponseHandler = HttpResponseHandlers.GetStringResponseHandler()
+                ResponseHandler = Task.FromResult
             });
 
         // 로그인
-        public async Task<string> Login(NaverLoginForm loginForm)
+        public async Task<HttpResponseMessage> Login(NaverLoginForm loginForm)
         {
             var login = new NaverHeadlessOAuth(http, browser);
             
@@ -73,6 +77,9 @@ namespace NaverLoginTest
             if (regexTokenResult.Success && regexTokenResult.Groups.Count >= 2)
                 CsrfToken = regexTokenResult.Groups[1].Value;
 
+            if (string.IsNullOrEmpty(oauthResult.Code) || string.IsNullOrEmpty(oauthResult.State))
+                throw new InvalidCredentialException("naver OAuth failed");
+            
             var loginTokenResponse = await getLoginToken(oauthResult.Code, oauthResult.State);
             return loginTokenResponse;
         }
@@ -98,6 +105,15 @@ namespace NaverLoginTest
                     loginData = loginData
                 }),
                 ResponseHandler = HttpResponseHandlers.GetStringResponseHandler()
+            });
+
+        public Task<HttpResponseMessage> test(string encData)
+            => http.SendActionAsync(new HttpAction<HttpResponseMessage>
+            {
+                Method = HttpMethod.Get,
+                RequestUri = new Uri("https://searchadvisor.naver.com/api-board/list/" + encData),
+                RequestHeaders = getHeaders(),
+                ResponseHandler = Task.FromResult
             });
     }
 }
