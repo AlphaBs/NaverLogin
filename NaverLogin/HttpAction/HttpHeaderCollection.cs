@@ -22,6 +22,13 @@ namespace HttpAction
             }
         }
 
+        public void Set(string key, string value)
+        {
+            if (Headers.ContainsKey(key))
+                Headers.Remove(key);
+            Add(key, value);
+        }
+
         public void AddToHeader(HttpRequestHeaders header)
         {
             foreach (var item in this)
