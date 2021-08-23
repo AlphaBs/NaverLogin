@@ -19,10 +19,6 @@ namespace NaverLogin
         
         private readonly HttpClient http;
         private readonly BrowserInfo browser;
-
-        // 다른 BVSD 생성 방법을 사용하고 싶으면 속성 값 변경
-        public IBvsdGenerator BvsdGenerator { get; set; }
-            = new DefaultBvsdGenerator();
         
         // JavaScript Redirect 자동으로 처리할지
         public bool AutoRedirect { get; set; } = true;
@@ -33,6 +29,8 @@ namespace NaverLogin
         {
             this.http = http;
             this.browser = browser;
+
+            if (!browser.IsValid()) throw new ArgumentException(nameof(browser));
         }
 
         private HttpHeaderCollection getHeaders(bool useReferer=true)
