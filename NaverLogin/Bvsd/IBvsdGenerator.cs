@@ -1,4 +1,4 @@
-﻿namespace NaverLogin
+﻿namespace NaverLogin.Bvsd
 {
     // BVSD 문자열 생성 인터페이스
     public interface IBvsdGenerator

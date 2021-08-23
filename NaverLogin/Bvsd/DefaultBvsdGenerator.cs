@@ -3,7 +3,7 @@ using LZStringCSharp;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-namespace NaverLogin
+namespace NaverLogin.Bvsd
 {
     // BVSD 문자열 생성하는 클래스. 
     public class DefaultBvsdGenerator : IBvsdGenerator

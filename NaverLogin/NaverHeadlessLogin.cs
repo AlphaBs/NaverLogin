@@ -197,7 +197,7 @@ namespace NaverLogin
             await Task.Delay(1000 + random.Next(10, 1000));
             
             // bvsd
-            loginInputDict["bvsd"] = BvsdGenerator.Generate(form, browser);
+            loginInputDict["bvsd"] = browser.BvsdGenerator?.Generate(form, browser) ?? "";
             
             // submit
             var response = await submitLoginForm(new Uri(formAction), loginInputDict);
