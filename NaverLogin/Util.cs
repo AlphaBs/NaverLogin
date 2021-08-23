@@ -17,6 +17,43 @@ namespace NaverLogin
 
         private static readonly Random random = new Random();
 
+        public static string ToHexString(byte[] bytes)
+        {
+            char[] c = new char[bytes.Length * 2];
+            int b;
+            for (int i = 0; i < bytes.Length; i++) {
+                b = bytes[i] >> 4;
+                c[i * 2] = (char)(55 + b + (((b-10)>>31)&-7));
+                b = bytes[i] & 0xF;
+                c[i * 2 + 1] = (char)(55 + b + (((b-10)>>31)&-7));
+            }
+            return new string(c);
+        }
+        
+        public static byte[] FromHexString(string hex) {
+            if (hex.Length % 2 == 1)
+                throw new Exception("The binary key cannot have an odd number of digits");
+
+            byte[] arr = new byte[hex.Length >> 1];
+
+            for (int i = 0; i < hex.Length >> 1; ++i)
+            {
+                arr[i] = (byte)((GetHexVal(hex[i << 1]) << 4) + (GetHexVal(hex[(i << 1) + 1])));
+            }
+
+            return arr;
+        }
+
+        public static int GetHexVal(char hex) {
+            int val = (int)hex;
+            //For uppercase A-F letters:
+            //return val - (val < 58 ? 48 : 55);
+            //For lowercase a-f letters:
+            //return val - (val < 58 ? 48 : 87);
+            //Or the two combined, but a bit slower:
+            return val - (val < 58 ? 48 : (val < 97 ? 55 : 87));
+        }
+        
         // modulus(hex string), exponent(hex string)를 키로 설정하여
         // plain을 RSA 암호화한 후 HEX 문자열로 반환
         public static string EncryptRSA(string modulus, string exponent, string plain)
@@ -24,19 +61,19 @@ namespace NaverLogin
             using var rsa = new RSACryptoServiceProvider();
 
             var publicKey = new RSAParameters();
-            publicKey.Modulus = Convert.FromHexString(modulus);
-            publicKey.Exponent = Convert.FromHexString(exponent);
+            publicKey.Modulus = FromHexString(modulus);
+            publicKey.Exponent = FromHexString(exponent);
 
             var plainBytes = Encoding.UTF8.GetBytes(plain);
             rsa.ImportParameters(publicKey);
 
             var encryptBytes = rsa.Encrypt(plainBytes, false);
-            return Convert.ToHexString(encryptBytes).ToLower();
+            return ToHexString(encryptBytes).ToLower();
         }
 
         // html 문서 내용이 다른 페이지로 리다이렉트하는 내용이라면
         // 리다이렉트할 페이지의 주소를 반환
-        public static string? GetRedirectUrlFromHTML(string html)
+        public static string? GetRedirectUrlFromHtml(string html)
         {
             var doc = new HtmlDocument();
             doc.LoadHtml(html);
