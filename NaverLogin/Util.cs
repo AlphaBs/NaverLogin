@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Linq;
+using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using HtmlAgilityPack;
+using HttpAction;
 
 namespace NaverLogin
 {
@@ -11,8 +14,9 @@ namespace NaverLogin
     {
         private static readonly Regex locationReplaceUrlRegex
             = new Regex("location\\.replace\\([\\\"\\'](.*)[\\\"\\']\\);");
+
         private static readonly Random random = new Random();
-        
+
         // modulus(hex string), exponent(hex string)를 키로 설정하여
         // plain을 RSA 암호화한 후 HEX 문자열로 반환
         public static string EncryptRSA(string modulus, string exponent, string plain)
@@ -22,10 +26,10 @@ namespace NaverLogin
             var publicKey = new RSAParameters();
             publicKey.Modulus = Convert.FromHexString(modulus);
             publicKey.Exponent = Convert.FromHexString(exponent);
- 
+
             var plainBytes = Encoding.UTF8.GetBytes(plain);
             rsa.ImportParameters(publicKey);
-            
+
             var encryptBytes = rsa.Encrypt(plainBytes, false);
             return Convert.ToHexString(encryptBytes).ToLower();
         }
@@ -36,12 +40,12 @@ namespace NaverLogin
         {
             var doc = new HtmlDocument();
             doc.LoadHtml(html);
-            
+
             var body = doc.DocumentNode.Descendants("body")
                 .FirstOrDefault();
 
             string? redirectUrl = null;
-            
+
             if (body == null || string.IsNullOrWhiteSpace(body.InnerText))
             {
                 var scripts = doc.DocumentNode.Descendants("script");
@@ -54,6 +58,64 @@ namespace NaverLogin
             }
 
             return redirectUrl;
+        }
+
+        public static Task<HttpResponseMessage> FinalRedirect(HttpClient http, HttpResponseMessage response)
+            => FinalRedirect(http, response, null);
+        
+        public static async Task<HttpResponseMessage> FinalRedirect(HttpClient http, HttpResponseMessage response,
+            Action<HttpResponseMessage>? middle)
+        {
+            string referer = "";
+            while (true)
+            {
+                // 현재 주소를 referer 로 설정
+                var reqUri = response.RequestMessage?.RequestUri;
+                if (reqUri != null)
+                {
+                    Uri? curUri;
+                    try
+                    {
+                        curUri = new Uri(referer);
+                    }
+                    catch
+                    {
+                        curUri = null;
+                    }
+                    
+                    if (curUri != null && reqUri.Host != curUri.Host)
+                        referer = reqUri.Scheme + reqUri.Host;
+                    else
+                        referer = reqUri.ToString();
+                }
+
+                // 리다이렉트 url 찾기
+                var content = await response.Content.ReadAsStringAsync();
+                var redirect = GetRedirectUrlFromHTML(content);
+                
+                Console.WriteLine(redirect);
+                
+                // 최종 목적지 도착한 경우
+                if (string.IsNullOrEmpty(redirect))
+                    break;
+                
+                // 리다이렉트 처리
+                response = await http.SendActionAsync(new HttpAction<HttpResponseMessage>
+                {
+                    Method = HttpMethod.Get,
+                    RequestUri = new Uri(redirect),
+                    RequestHeaders = new HttpHeaderCollection // TODO: 추가할 헤더 목록 파라미터로 받아오기
+                    {
+                        {"referer", referer},
+                        {"user-agent", response.RequestMessage?.Headers?.UserAgent?.ToString() ?? ""}
+                    },
+                    ResponseHandler = Task.FromResult
+                });
+                
+                middle?.Invoke(response);
+            }
+
+            return response;
         }
 
         // 길이가 length인 랜덤 hex문자열 반환
