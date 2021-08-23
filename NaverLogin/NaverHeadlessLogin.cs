@@ -23,17 +23,31 @@ namespace NaverLogin
         // 다른 BVSD 생성 방법을 사용하고 싶으면 속성 값 변경
         public IBvsdGenerator BvsdGenerator { get; set; }
             = new DefaultBvsdGenerator();
+        
+        // JavaScript Redirect 자동으로 처리할지
+        public bool AutoRedirect { get; set; } = true;
 
-        private string? referer;
+        private string referer = "";
         
         public NaverHeadlessLogin(HttpClient http, BrowserInfo browser)
         {
             this.http = http;
             this.browser = browser;
-            
-            this.http.DefaultRequestHeaders.Add("user-agent", browser.UserAgent);
         }
 
+        private HttpHeaderCollection getHeaders(bool useReferer=true)
+        {
+            var header = new HttpHeaderCollection();
+            
+            if (useReferer && !string.IsNullOrEmpty(referer))
+                header.Add("referer", referer);
+            
+            if (!string.IsNullOrEmpty(browser.UserAgent))
+                header.Add("user-agent", browser.UserAgent);
+
+            return header;
+        }
+        
         // GET: 로그인 페이지, HTML 반환
         private Task<string> getLoginPage()
             => getLoginPage("form", "https://www.naver.com");
@@ -54,17 +68,27 @@ namespace NaverLogin
                     {"mode", mode},
                     {"url", redirect}
                 },
-                RequestHeaders = new HttpHeaderCollection
-                {
-                    {"referer", referer}
-                },
+                RequestHeaders = getHeaders(),
                 ResponseHandler = async res =>
                 {
-                    referer = res.RequestMessage?.RequestUri?.ToString();
+                    referer = res.RequestMessage?.RequestUri?.ToString() ?? "";
                     return await res.Content.ReadAsStringAsync();
                 }
             });
         }
+
+        private Task<string> getLoginPageFromUrl(string url)
+            => http.SendActionAsync(new HttpAction<string>
+            {
+                Method = HttpMethod.Get,
+                RequestUri = new Uri(url),
+                RequestHeaders = getHeaders(),
+                ResponseHandler = async res =>
+                {
+                    referer = res.RequestMessage?.RequestUri?.ToString() ?? "";
+                    return await res.Content.ReadAsStringAsync();
+                }
+            });
 
         // GET: dynamicKey로 NaverLoginSessionKey 얻기
         private Task<NaverLoginSessionKey> getSessionKey(string dynamicKey)
@@ -73,6 +97,7 @@ namespace NaverLogin
                 Method = HttpMethod.Get,
                 Host = "https://nid.naver.com",
                 Path = $"dynamicKey/{dynamicKey}",
+                RequestHeaders = getHeaders(useReferer: false),
                 ResponseHandler = async res =>
                 {
                     var resStr = await res.Content.ReadAsStringAsync();
@@ -100,10 +125,7 @@ namespace NaverLogin
                 Method = HttpMethod.Post,
                 RequestUri = uri,
                 Content = content,
-                RequestHeaders = new HttpHeaderCollection
-                {
-                    {"referer", referer}
-                },
+                RequestHeaders = getHeaders(),
                 ResponseHandler = Task.FromResult
             });
 
@@ -122,11 +144,21 @@ namespace NaverLogin
         {
             // get login page
             var loginPageHtml = await getLoginPage(redirect);
-            return await LoginFromHtml(form, loginPageHtml);
+            return await LoginFromHtml(form, loginPageHtml, "https://www.naver.com/");
         }
 
-        public async Task<NaverLoginResult> LoginFromHtml(NaverLoginForm form, string loginPageHtml)
+        public async Task<NaverLoginResult> LoginFromUrl(NaverLoginForm form, string url)
         {
+            var loginPageHtml = await getLoginPageFromUrl(url);
+            return await LoginFromHtml(form, loginPageHtml);
+        }
+        
+        public async Task<NaverLoginResult> LoginFromHtml(
+            NaverLoginForm form, string loginPageHtml, string currentReferer="")
+        {
+            if (!string.IsNullOrEmpty(currentReferer))
+                referer = currentReferer;
+            
             // parse login page
             var loginHtmlDoc = new HtmlDocument();
             loginHtmlDoc.LoadHtml(loginPageHtml);
@@ -147,6 +179,8 @@ namespace NaverLogin
                     loginInputDict[inputName] = inputValue;
             }
 
+            //loginInputDict["privateMode"] = "true";
+            
             // get session keys
             var sessionKey = await getSessionKey(loginInputDict["dynamicKey"]);
             loginInputDict["encnm"] = sessionKey.KeyName;
@@ -169,32 +203,10 @@ namespace NaverLogin
             
             // submit
             var response = await submitLoginForm(new Uri(formAction), loginInputDict);
-            while (true)
-            {
-                var tempReferer = response.RequestMessage?.RequestUri?.ToString();
-                if (!string.IsNullOrEmpty(tempReferer))
-                    referer = tempReferer;
-                
-                var content = await response.Content.ReadAsStringAsync();
-                var redirect = Util.GetRedirectUrlFromHTML(content);
-                
-                // 최종 목적지 도착
-                if (string.IsNullOrEmpty(redirect))
-                    break;
-                
-                // 리다이렉트 처리
-                response = await http.SendActionAsync(new HttpAction<HttpResponseMessage>
-                {
-                    Method = HttpMethod.Get,
-                    RequestUri = new Uri(redirect),
-                    RequestHeaders = new HttpHeaderCollection
-                    {
-                        {"referer", referer}
-                    },
-                    ResponseHandler = Task.FromResult
-                });
-            }
             
+            if (AutoRedirect)
+                response = await Util.FinalRedirect(http, response);
+
             return NaverLoginResult.FromHttpResponseMessage(response);
         }
     }
