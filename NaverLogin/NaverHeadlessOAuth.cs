@@ -62,7 +62,7 @@ namespace NaverLogin
             var httpResponse = res.Response;
             string state = "", code = "";
             
-            httpResponse = await Util.FinalRedirect(http, httpResponse, message =>
+            httpResponse = await Util.FinalRedirect(http, httpResponse, getHeaders(), message =>
             {
                 // 리다이렉트한 URL 가져오기
                 var resUri = message.RequestMessage?.RequestUri;

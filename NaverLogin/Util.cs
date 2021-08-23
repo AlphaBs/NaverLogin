@@ -60,11 +60,13 @@ namespace NaverLogin
             return redirectUrl;
         }
 
-        public static Task<HttpResponseMessage> FinalRedirect(HttpClient http, HttpResponseMessage response)
-            => FinalRedirect(http, response, null);
+        // 리다이렉트를 모두 거쳐 최종 response 를 반환함
+        public static Task<HttpResponseMessage> FinalRedirect(HttpClient http, HttpResponseMessage response,
+            HttpHeaderCollection? header)
+            => FinalRedirect(http, response, header, null);
         
         public static async Task<HttpResponseMessage> FinalRedirect(HttpClient http, HttpResponseMessage response,
-            Action<HttpResponseMessage>? middle)
+            HttpHeaderCollection? header, Action<HttpResponseMessage>? middle)
         {
             string referer = "";
             while (true)
@@ -91,24 +93,22 @@ namespace NaverLogin
 
                 // 리다이렉트 url 찾기
                 var content = await response.Content.ReadAsStringAsync();
-                var redirect = GetRedirectUrlFromHTML(content);
+                var redirect = GetRedirectUrlFromHtml(content);
                 
-                Console.WriteLine(redirect);
+                //Console.WriteLine(redirect);
                 
                 // 최종 목적지 도착한 경우
                 if (string.IsNullOrEmpty(redirect))
                     break;
                 
                 // 리다이렉트 처리
+                if (header != null && !string.IsNullOrEmpty(referer))
+                    header.Set("referer", referer);
                 response = await http.SendActionAsync(new HttpAction<HttpResponseMessage>
                 {
                     Method = HttpMethod.Get,
                     RequestUri = new Uri(redirect),
-                    RequestHeaders = new HttpHeaderCollection // TODO: 추가할 헤더 목록 파라미터로 받아오기
-                    {
-                        {"referer", referer},
-                        {"user-agent", response.RequestMessage?.Headers?.UserAgent?.ToString() ?? ""}
-                    },
+                    RequestHeaders = header,
                     ResponseHandler = Task.FromResult
                 });
                 

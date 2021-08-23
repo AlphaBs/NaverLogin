@@ -203,7 +203,7 @@ namespace NaverLogin
             var response = await submitLoginForm(new Uri(formAction), loginInputDict);
             
             if (AutoRedirect)
-                response = await Util.FinalRedirect(http, response);
+                response = await Util.FinalRedirect(http, response, getHeaders());
 
             return NaverLoginResult.FromHttpResponseMessage(response);
         }
